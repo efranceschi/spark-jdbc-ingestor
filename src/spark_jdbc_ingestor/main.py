@@ -33,6 +33,7 @@ class JdbcIngestor:
         Initializes the JdbcIngestion class with the given parameters.
 
         Args:
+        spark: Spark instance
         url (str): The JDBC URL for the database connection.
         user (str): The username for the database connection.
         password (str): The password for the database connection.
@@ -59,7 +60,7 @@ class JdbcIngestor:
         Returns:
         JdbcIngestion._From: An instance of the _From class with the specified table query.
         """
-        return self._From(self, f"(select * from {table}) as source_table")
+        return self._From(self, self.spark, f"(select * from {table}) as source_table")
 
     def from_query(self, query: str):
         """
@@ -71,7 +72,7 @@ class JdbcIngestor:
         Returns:
         JdbcIngestion._From: An instance of the _From class with the specified query.
         """
-        return self._From(self, query)
+        return self._From(self, self.spark, query)
 
     def execute(self, query):
         """
@@ -83,7 +84,7 @@ class JdbcIngestor:
         Returns:
         DataFrame: A Spark DataFrame containing the results of the query.
         """
-        return self._From(self, None).execute(query)
+        return self._From(self, self.spark, None).execute(query)
 
     def get_last_value(self, table: str, column: str, default_value=None):
         """
@@ -97,7 +98,7 @@ class JdbcIngestor:
         Returns:
         The last value of the specified column if found, otherwise the default value.
         """
-        return self._LastValue(self, table, column, default_value).execute()
+        return self._LastValue(self, self.spark, table, column, default_value).execute()
 
     class _From:
         """
@@ -105,19 +106,22 @@ class JdbcIngestor:
 
         Attributes:
         parent (JdbcIngestion): The parent JdbcIngestion instance.
+        spark: Spark instance
         query (str): The SQL query string.
         filters (list): A list of filters to apply to the query.
         """
 
-        def __init__(self, parent, query: str):
+        def __init__(self, parent, spark, query: str):
             """
             Initializes the _From class with the given parameters.
 
             Args:
             parent (JdbcIngestion): The parent JdbcIngestion instance.
+            spark: Spark instance
             query (str): The SQL query string.
             """
             self.parent = parent
+            self.spark = spark
             self.query = query
             self.filters = []
 
@@ -273,6 +277,7 @@ class JdbcIngestor:
 
         Attributes
         ----------
+        spark: Spark instance
         df : DataFrame
             The Spark DataFrame to be analyzed.
 
@@ -290,18 +295,19 @@ class JdbcIngestor:
         analyze_table(sample=1000)
             Analyzes the DataFrame and returns a DataFrame with computed statistics.
         """
-        def __init__(self, parent, df):
+        def __init__(self, parent, spark, df):
             """
             Initializes the _TableAnalyzer class with the given parameters.
 
             Args:
             parent (JdbcIngestion._From): The parent _From instance.
+            spark: Spark instance
             df (DataFrame): The Spark DataFrame to be analyzed.
             """
            
             self.parent = parent
+            self.spark = spark
             self.df = df
-
 
         def _is_numeric_field(self, field):
             """
@@ -330,7 +336,6 @@ class JdbcIngestor:
                 ),
             )
 
-
         def _is_temporal_field(self, field):
             """
             Checks if a field is of a temporal data type.
@@ -346,7 +351,6 @@ class JdbcIngestor:
                 True if the field is of a temporal data type, False otherwise.
             """
             return isinstance(field.dataType, (DateType, TimestampType))
-
 
         def _get_stats(self, sample):
             """
@@ -374,7 +378,6 @@ class JdbcIngestor:
                 if self._is_numeric_field(field) or self._is_temporal_field(field):
                     select_fields.append(f"count(distinct {field_name}) as count_distinct___{field_name}")
             return analyze_df.selectExpr(*select_fields)
-
 
         def analyze_table(self, sample=1000):
             """
@@ -422,18 +425,21 @@ class JdbcIngestor:
 
         Attributes:
         parent (JdbcIngestion._From): The parent _From instance.
+        spark: Spark instance
         df (DataFrame): The Spark DataFrame to be written.
         """
 
-        def __init__(self, parent, df):
+        def __init__(self, parent, spark, df):
             """
             Initializes the _To class with the given parameters.
 
             Args:
             parent (JdbcIngestion._From): The parent _From instance.
+            spark: Spark instance
             df (DataFrame): The Spark DataFrame to be written.
             """
             self.parent = parent
+            self.spark = spark
             self.df = df
 
         def append(self, table: str):
@@ -466,22 +472,25 @@ class JdbcIngestor:
 
         Attributes:
         parent (JdbcIngestion): The parent JdbcIngestion instance.
+        spark: Spark instance
         table (str): The name of the table to query.
         column (str): The column to retrieve the last value from.
         default_value (optional): The default value to return if no value is found. Default is None.
         """
 
-        def __init__(self, parent, table: str, column: str, default_value=None):
+        def __init__(self, parent, spark, table: str, column: str, default_value=None):
             """
             Initializes the _LastValue class with the given parameters.
 
             Args:
             parent (JdbcIngestion): The parent JdbcIngestion instance.
+            spark: Spark instance
             table (str): The name of the table to query.
             column (str): The column to retrieve the last value from.
             default_value (optional): The default value to return if no value is found. Default is None.
             """
             self.parent = parent
+            self.spark = spark
             self.table = table
             self.column = column
             self.default_value = default_value
