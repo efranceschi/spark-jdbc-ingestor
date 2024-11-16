@@ -1,1 +1,1 @@
-from .jdbc_ingestor import JdbcIngestor
+from .main import JdbcIngestor
