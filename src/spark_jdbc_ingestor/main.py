@@ -146,7 +146,7 @@ class JdbcIngestor:
             DataFrameReader: A Spark DataFrame reader configured with the JDBC options.
             """
             return (
-                self.parent.spark.read.format("jdbc")
+                self.spark.read.format("jdbc")
                 .option("url", self.parent.url)
                 .option("driver", self.parent.driver)
                 .option("user", self.parent.user)
@@ -409,7 +409,7 @@ class JdbcIngestor:
                 data[field_name][stats_functs.index(stat_name)+1] = stats_values[f"{stat_name}___{field_name}"]
                 window_spec = Window.partitionBy("dummy").orderBy("dummy")
             return (
-                self.parent.spark.createDataFrame([x for x in tuple(data.values())], ["field_name"] + [sf for sf in stats_functs])
+                self.spark.createDataFrame([x for x in tuple(data.values())], ["field_name"] + [sf for sf in stats_functs])
                     .withColumn("uniformity", expr(f"(count_distinct/{sample})"))
                     .withColumn("completeness", expr(f"(count/{sample})"))
                     .orderBy(desc("uniformity"), desc("completeness"), asc("stddev"))
@@ -503,7 +503,7 @@ class JdbcIngestor:
             The last value of the specified column if found, otherwise the default value.
             """
             result = (
-                self.parent.spark.read.table(self.table)
+                self.spark.read.table(self.table)
                 .select(max(self.column))
                 .collect()[0][0]
             )
