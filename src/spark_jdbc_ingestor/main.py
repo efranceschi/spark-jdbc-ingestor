@@ -207,8 +207,7 @@ class JdbcIngestor:
             if not partition_column is None:
                 if lower_bound is None or upper_bound is None:
                     boundaries_query = (
-                        f"(select min({partition_column}) as lower_bound, max({
-                            partition_column}) as upper_bound"
+                        f"(select min({partition_column}) as lower_bound, max({partition_column}) as upper_bound"
                         + f" from {_query}) as boundaries"
                     )
                     self.parent.logger.info(
@@ -218,8 +217,9 @@ class JdbcIngestor:
                     ).first()
                     lower_bound = boundaries["lower_bound"]
                     upper_bound = boundaries["upper_bound"]
-                    self.parent.logger.info(f"Found boundaries: lower_bound={
-                                            lower_bound}, upper_bound={upper_bound}")
+                    self.parent.logger.info(
+                        f"Found boundaries: lower_bound={lower_bound}, upper_bound={upper_bound}"
+                    )
                 if lower_bound is not None and upper_bound is not None:
                     reader = (
                         reader.option("partitionColumn", partition_column)
@@ -378,11 +378,13 @@ class JdbcIngestor:
                 field_name = field.name
                 for stat_name in ["min", "max", "avg", "stddev", "count"]:
                     if self._is_numeric_field(field):
-                        select_fields.append(f"{stat_name}({field_name}) as {
-                                             stat_name}___{field_name}")
+                        select_fields.append(
+                            f"{stat_name}({field_name}) as {stat_name}___{field_name}"
+                        )
                     elif self._is_temporal_field(field):
-                        select_fields.append(f"{stat_name}(unix_timestamp({field_name})) as {
-                                             stat_name}___{field_name}")
+                        select_fields.append(
+                            f"{stat_name}(unix_timestamp({field_name})) as {stat_name}___{field_name}"
+                        )
                 if self._is_numeric_field(field) or self._is_temporal_field(field):
                     select_fields.append(
                         f"count(distinct {field_name}) as count_distinct___{field_name}")
