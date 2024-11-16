@@ -167,7 +167,7 @@ class JdbcIngestor:
             Returns:
             JdbcIngestion._From: The current instance of the _From class with the added filter.
             """
-            _last_value = self.parent._LastValue(self, table, column, default_value).execute()
+            _last_value = self.parent._LastValue(self, self.spark, table, column, default_value).execute()
             match _last_value:
                 case str():
                     return self.add_filter(f"{column} > '{_last_value}'")
