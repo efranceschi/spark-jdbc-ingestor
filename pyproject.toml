@@ -17,7 +17,6 @@ classifiers = [
 keywords = ["spark", "jdbc", "ingestor", "ingestion"]
 dependencies = [
     "pyspark>=3.0.0",
-    "logging>=0.5",
     "datetime>=5.0",
 ]
 requires-python = ">=3.7"
