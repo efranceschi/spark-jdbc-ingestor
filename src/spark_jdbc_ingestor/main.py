@@ -5,6 +5,7 @@ from pyspark.sql.types import *
 from pyspark.sql.functions import *
 from pyspark.sql.window import Window
 
+
 class JdbcIngestor:
     """
     A class to handle JDBC ingestion from a SQL database.
@@ -167,7 +168,8 @@ class JdbcIngestor:
             Returns:
             JdbcIngestion._From: The current instance of the _From class with the added filter.
             """
-            _last_value = self.parent._LastValue(self, self.spark, table, column, default_value).execute()
+            _last_value = self.parent._LastValue(
+                self, self.spark, table, column, default_value).execute()
             match _last_value:
                 case str():
                     return self.add_filter(f"{column} > '{_last_value}'")
@@ -200,21 +202,25 @@ class JdbcIngestor:
             _filters = self.filters
 
             if len(_filters) > 0:
-                _query = f"(select * from {_query} where {' and '.join(_filters)}) as filtered_source_table"
+                _query = f"(select * from {_query} where {
+                    ' and '.join(_filters)}) as filtered_source_table"
 
             if not partition_column is None:
                 if lower_bound is None or upper_bound is None:
                     boundaries_query = (
-                        f"(select min({partition_column}) as lower_bound, max({partition_column}) as upper_bound"
+                        f"(select min({partition_column}) as lower_bound, max({
+                            partition_column}) as upper_bound"
                         + f" from {_query}) as boundaries"
                     )
-                    self.parent.logger.info(f"Looking for boundaries: {boundaries_query}")
+                    self.parent.logger.info(
+                        f"Looking for boundaries: {boundaries_query}")
                     boundaries = (
                         self._create_read().option("dbtable", boundaries_query).load()
                     ).first()
                     lower_bound = boundaries["lower_bound"]
                     upper_bound = boundaries["upper_bound"]
-                    self.parent.logger.info(f"Found boundaries: lower_bound={lower_bound}, upper_bound={upper_bound}")
+                    self.parent.logger.info(f"Found boundaries: lower_bound={
+                                            lower_bound}, upper_bound={upper_bound}")
                 if lower_bound is not None and upper_bound is not None:
                     reader = (
                         reader.option("partitionColumn", partition_column)
@@ -244,7 +250,7 @@ class JdbcIngestor:
             Returns:
             DataFrame: A Spark DataFrame containing the results of the query.
             """
-            return self.parent._To(self, self._prepare(partition_column, num_partitions, lower_bound, upper_bound).load())
+            return self.parent._To(self, self.spark, self._prepare(partition_column, num_partitions, lower_bound, upper_bound).load())
 
         def execute(self, query: str):
             """
@@ -267,10 +273,10 @@ class JdbcIngestor:
             """
             self.parent.logger.info(f"Executing query: {query}")
             return self._create_read().option("dbtable", query).load()
-        
+
         def analyze(self, sample=1000):
-            return self.parent._TableAnalyzer(self, self._prepare().load()).analyze_table(sample=sample)
-                                         
+            return self.parent._TableAnalyzer(self, self.spark, self._prepare().load()).analyze_table(sample=sample)
+
     class _TableAnalyzer:
         """
         A class used to analyze a Spark DataFrame and compute various statistics.
@@ -285,16 +291,17 @@ class JdbcIngestor:
         -------
         _is_numeric_field(field)
             Checks if a field is of a numeric data type.
-        
+
         _is_temporal_field(field)
             Checks if a field is of a temporal data type.
-        
+
         _get_stats()
             Computes statistics for numeric and temporal fields in the DataFrame.
-        
+
         analyze_table(sample=1000)
             Analyzes the DataFrame and returns a DataFrame with computed statistics.
         """
+
         def __init__(self, parent, spark, df):
             """
             Initializes the _TableAnalyzer class with the given parameters.
@@ -304,7 +311,7 @@ class JdbcIngestor:
             spark: Spark instance
             df (DataFrame): The Spark DataFrame to be analyzed.
             """
-           
+
             self.parent = parent
             self.spark = spark
             self.df = df
@@ -372,11 +379,14 @@ class JdbcIngestor:
                 field_name = field.name
                 for stat_name in ["min", "max", "avg", "stddev", "count"]:
                     if self._is_numeric_field(field):
-                        select_fields.append(f"{stat_name}({field_name}) as {stat_name}___{field_name}")
+                        select_fields.append(f"{stat_name}({field_name}) as {
+                                             stat_name}___{field_name}")
                     elif self._is_temporal_field(field):
-                        select_fields.append(f"{stat_name}(unix_timestamp({field_name})) as {stat_name}___{field_name}")
+                        select_fields.append(f"{stat_name}(unix_timestamp({field_name})) as {
+                                             stat_name}___{field_name}")
                 if self._is_numeric_field(field) or self._is_temporal_field(field):
-                    select_fields.append(f"count(distinct {field_name}) as count_distinct___{field_name}")
+                    select_fields.append(
+                        f"count(distinct {field_name}) as count_distinct___{field_name}")
             return analyze_df.selectExpr(*select_fields)
 
         def analyze_table(self, sample=1000):
@@ -395,10 +405,12 @@ class JdbcIngestor:
                 completeness metrics.
             """
             stats_df = self._get_stats(sample)
-            self.parent.parent.logger.info(f"Getting statistical data from table (sample={sample})...")
+            self.parent.parent.logger.info(
+                f"Getting statistical data from table (sample={sample})...")
             stats_values = stats_df.collect()[0]
             data = {}
-            stats_functs = ["min", "max", "avg", "stddev", "count", "count_distinct"]
+            stats_functs = ["min", "max", "avg",
+                            "stddev", "count", "count_distinct"]
             fields = []
             for field in stats_df.schema.fields:
                 stat_name, field_name = field.name.split("___")
@@ -406,10 +418,12 @@ class JdbcIngestor:
                     fields.append(field_name)
                 if field_name not in data:
                     data[field_name] = [field_name] + [0] * len(stats_functs)
-                data[field_name][stats_functs.index(stat_name)+1] = stats_values[f"{stat_name}___{field_name}"]
+                data[field_name][stats_functs.index(
+                    stat_name)+1] = stats_values[f"{stat_name}___{field_name}"]
                 window_spec = Window.partitionBy("dummy").orderBy("dummy")
             return (
-                self.spark.createDataFrame([x for x in tuple(data.values())], ["field_name"] + [sf for sf in stats_functs])
+                self.spark.createDataFrame([x for x in tuple(data.values())], [
+                                           "field_name"] + [sf for sf in stats_functs])
                     .withColumn("uniformity", expr(f"(count_distinct/{sample})"))
                     .withColumn("completeness", expr(f"(count/{sample})"))
                     .orderBy(desc("uniformity"), desc("completeness"), asc("stddev"))
@@ -465,7 +479,7 @@ class JdbcIngestor:
             None
             """
             return self.df.write.mode("overwrite").saveAsTable(table)
-          
+
     class _LastValue:
         """
         A helper class to retrieve the last value of a specified column from a table.
