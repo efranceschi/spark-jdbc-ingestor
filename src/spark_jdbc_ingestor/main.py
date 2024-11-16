@@ -202,8 +202,7 @@ class JdbcIngestor:
             _filters = self.filters
 
             if len(_filters) > 0:
-                _query = f"(select * from {_query} where {
-                    ' and '.join(_filters)}) as filtered_source_table"
+                _query = f"(select * from {_query} where {' and '.join(_filters)}) as filtered_source_table"
 
             if not partition_column is None:
                 if lower_bound is None or upper_bound is None:
@@ -373,9 +372,9 @@ class JdbcIngestor:
             DataFrame
                 A DataFrame containing computed statistics for numeric and temporal fields.
             """
-            analyze_df = df.limit(sample)
+            analyze_df = self.df.limit(sample)
             select_fields = []
-            for field in df.schema.fields:
+            for field in self.df.schema.fields:
                 field_name = field.name
                 for stat_name in ["min", "max", "avg", "stddev", "count"]:
                     if self._is_numeric_field(field):
