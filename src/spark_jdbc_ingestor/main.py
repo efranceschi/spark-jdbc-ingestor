@@ -10,6 +10,7 @@ class JdbcIngestor:
     A class to handle JDBC ingestion from a SQL database.
 
     Attributes:
+    spark: Spark instance
     url (str): The JDBC URL for the database connection.
     user (str): The username for the database connection.
     password (str): The password for the database connection.
@@ -20,6 +21,7 @@ class JdbcIngestor:
 
     def __init__(
         self,
+        spark,
         url: str,
         user: str,
         password: str,
@@ -38,6 +40,7 @@ class JdbcIngestor:
         isolation_level (str): The transaction isolation level. Default is 'READ_COMMITTED'.
         fetch_size (int): The number of rows to fetch at a time. Default is 10000.
         """
+        self.spark = spark
         self.url = url
         self.user = user
         self.password = password
@@ -139,7 +142,7 @@ class JdbcIngestor:
             DataFrameReader: A Spark DataFrame reader configured with the JDBC options.
             """
             return (
-                spark.read.format("jdbc")
+                self.parent.spark.read.format("jdbc")
                 .option("url", self.parent.url)
                 .option("driver", self.parent.driver)
                 .option("user", self.parent.user)
@@ -403,7 +406,7 @@ class JdbcIngestor:
                 data[field_name][stats_functs.index(stat_name)+1] = stats_values[f"{stat_name}___{field_name}"]
                 window_spec = Window.partitionBy("dummy").orderBy("dummy")
             return (
-                spark.createDataFrame([x for x in tuple(data.values())], ["field_name"] + [sf for sf in stats_functs])
+                self.parent.spark.createDataFrame([x for x in tuple(data.values())], ["field_name"] + [sf for sf in stats_functs])
                     .withColumn("uniformity", expr(f"(count_distinct/{sample})"))
                     .withColumn("completeness", expr(f"(count/{sample})"))
                     .orderBy(desc("uniformity"), desc("completeness"), asc("stddev"))
@@ -491,7 +494,7 @@ class JdbcIngestor:
             The last value of the specified column if found, otherwise the default value.
             """
             result = (
-                spark.read.table(self.table)
+                self.parent.spark.read.table(self.table)
                 .select(max(self.column))
                 .collect()[0][0]
             )
