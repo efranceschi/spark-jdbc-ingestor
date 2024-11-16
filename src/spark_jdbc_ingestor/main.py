@@ -494,7 +494,7 @@ class JdbcIngestor:
             The last value of the specified column if found, otherwise the default value.
             """
             result = (
-                self.parent.spark.read.table(self.table)
+                self.parent.parent.spark.read.table(self.table)
                 .select(max(self.column))
                 .collect()[0][0]
             )
