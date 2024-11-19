@@ -158,6 +158,7 @@ import concurrent.futures
 from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s[%(thread)d] - %(levelname)s - %(message)s')
+logger = logging.getLogger("multi-thread-ingestor")
 
 def load_data_between(start_time, end_time):
     try:
